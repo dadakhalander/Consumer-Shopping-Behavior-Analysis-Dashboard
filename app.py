@@ -2,856 +2,285 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import numpy as np
-from datetime import datetime, timedelta
+import seaborn as sns
 
 # ==================== PAGE CONFIG ====================
 st.set_page_config(
-    page_title="Consumer Shopping Analytics Hub",
-    page_icon="🛍️",
+    page_title="Executive Consumer Analytics",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ==================== CUSTOM CSS ====================
+# ==================== MODERN PROFESSIONAL CSS ====================
 st.markdown("""
 <style>
-    /* Main container styling */
-    .main {
-        padding: 0rem 1rem;
+    /* Main Background and Font */
+    .stApp {
+        background-color: #f8f9fa;
     }
     
-    /* KPI Card Styling */
-    .kpi-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        color: white;
-        text-align: center;
-        margin: 10px 0;
-    }
-    
-    .kpi-card-green {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    }
-    
-    .kpi-card-blue {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    }
-    
-    .kpi-card-orange {
-        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-    }
-    
-    .kpi-card-purple {
-        background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
-    }
-    
-    .kpi-value {
-        font-size: 2.5rem;
-        font-weight: bold;
-        margin: 10px 0;
-    }
-    
-    .kpi-label {
-        font-size: 1rem;
-        opacity: 0.9;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    .kpi-delta {
-        font-size: 0.9rem;
-        margin-top: 5px;
-    }
-    
-    /* Header styling */
-    .dashboard-header {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        padding: 30px;
-        border-radius: 15px;
-        margin-bottom: 20px;
-        color: white;
-        text-align: center;
-    }
-    
-    /* Metric boxes */
-    div[data-testid="metric-container"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Header Styling */
+    .main-header {
+        background-color: #1e293b;
+        padding: 2rem;
         border-radius: 10px;
-        padding: 15px;
         color: white;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
     
-    div[data-testid="metric-container"] label {
-        color: white !important;
-        font-weight: 600;
+    /* Custom KPI Card */
+    .metric-card {
+        background-color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        border-left: 5px solid #4f46e5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        text-align: center;
     }
     
-    div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-        color: white;
+    .metric-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
     }
     
-    /* Sidebar styling */
+    .metric-label {
+        font-size: 0.9rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        background-color: #f1f5f9 !important;
+        border-right: 1px solid #e2e8f0;
     }
     
-    section[data-testid="stSidebar"] * {
-        color: white !important;
-    }
-    
-    /* Tab styling */
+    /* Tab Styling */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 10px;
     }
     
     .stTabs [data-baseweb="tab"] {
-        background-color: #f0f2f6;
-        border-radius: 10px 10px 0 0;
-        padding: 10px 20px;
-        font-weight: 600;
+        height: 45px;
+        padding: 0 20px;
+        background-color: transparent;
+        border-radius: 5px 5px 0 0;
+        font-weight: 500;
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background-color: #4f46e5 !important;
+        color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ==================== DATA LOADING ====================
+# ==================== DATA ENGINE ====================
 @st.cache_data
-def load_data():
-    """Load and preprocess the dataset"""
-    df = pd.read_csv("dataset/Consumer_Shopping_Behavior_dataset.csv")
-    df.columns = df.columns.str.strip()
-    return df
+def load_and_clean_data():
+    """Load data with robustness checks"""
+    try:
+        df = pd.read_csv("dataset/Consumer_Shopping_Behavior_dataset.csv")
+        df.columns = df.columns.str.strip()
+        
+        # Handle missing values
+        df = df.fillna({
+            'Purchase Amount (USD)': df['Purchase Amount (USD)'].median(),
+            'Review Rating': df['Review Rating'].median(),
+            'Age': df['Age'].median()
+        })
+        
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame()
 
-# Load data
-df = load_data()
+df = load_and_clean_data()
+
+if df.empty:
+    st.stop()
 
 # ==================== SIDEBAR FILTERS ====================
-st.sidebar.image("https://img.icons8.com/fluency/96/shopping-cart.png", width=80)
-st.sidebar.title("🎯 Filter Dashboard")
-st.sidebar.markdown("---")
+with st.sidebar:
+    st.image("https://img.icons8.com/fluency/96/analytics.png", width=60)
+    st.title("Control Panel")
+    st.markdown("---")
+    
+    # Dynamic Filter Helper
+    def create_filter(label, column):
+        if column in df.columns:
+            return st.multiselect(label, options=sorted(df[column].unique()), default=df[column].unique())
+        return []
 
-# Gender Filter
-if 'Gender' in df.columns:
-    gender_options = ['All'] + list(df['Gender'].unique())
-    selected_gender = st.sidebar.multiselect(
-        "👤 Gender",
-        options=df['Gender'].unique(),
-        default=df['Gender'].unique()
-    )
-else:
-    selected_gender = []
+    selected_gender = create_filter("👤 Gender", 'Gender')
+    selected_locations = create_filter("📍 Location", 'Location')
+    selected_categories = create_filter("🏷️ Category", 'Category')
+    selected_seasons = create_filter("🌞 Season", 'Season')
+    selected_payment = create_filter("💳 Payment Method", 'Payment Method')
 
-# Age Range Filter
-if 'Age' in df.columns:
-    age_min, age_max = int(df['Age'].min()), int(df['Age'].max())
-    age_range = st.sidebar.slider(
-        "🎂 Age Range",
-        min_value=age_min,
-        max_value=age_max,
-        value=(age_min, age_max)
-    )
-else:
-    age_range = None
+    if 'Age' in df.columns:
+        age_range = st.slider("🎂 Age Range", int(df['Age'].min()), int(df['Age'].max()), (int(df['Age'].min()), int(df['Age'].max())))
+    else:
+        age_range = None
 
-# Location Filter
-if 'Location' in df.columns:
-    selected_locations = st.sidebar.multiselect(
-        "📍 Location",
-        options=sorted(df['Location'].unique()),
-        default=df['Location'].unique()
-    )
-else:
-    selected_locations = []
-
-# Category Filter
-if 'Category' in df.columns:
-    selected_categories = st.sidebar.multiselect(
-        "🏷️ Product Category",
-        options=sorted(df['Category'].unique()),
-        default=df['Category'].unique()
-    )
-else:
-    selected_categories = []
-
-# Season Filter
-if 'Season' in df.columns:
-    selected_seasons = st.sidebar.multiselect(
-        "🌞 Season",
-        options=df['Season'].unique(),
-        default=df['Season'].unique()
-    )
-else:
-    selected_seasons = []
-
-# Payment Method Filter
-if 'Payment Method' in df.columns:
-    selected_payment = st.sidebar.multiselect(
-        "💳 Payment Method",
-        options=df['Payment Method'].unique(),
-        default=df['Payment Method'].unique()
-    )
-else:
-    selected_payment = []
-
-st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Reset All Filters"):
-    st.rerun()
+    st.markdown("---")
+    if st.button("🔄 Reset Filters", use_container_width=True):
+        st.rerun()
 
 # ==================== APPLY FILTERS ====================
-filtered_df = df.copy()
-
-if selected_gender:
-    filtered_df = filtered_df[filtered_df['Gender'].isin(selected_gender)]
-
-if age_range:
-    filtered_df = filtered_df[(filtered_df['Age'] >= age_range[0]) & (filtered_df['Age'] <= age_range[1])]
-
-if selected_locations:
-    filtered_df = filtered_df[filtered_df['Location'].isin(selected_locations)]
-
-if selected_categories:
-    filtered_df = filtered_df[filtered_df['Category'].isin(selected_categories)]
-
-if selected_seasons:
-    filtered_df = filtered_df[filtered_df['Season'].isin(selected_seasons)]
-
-if selected_payment:
-    filtered_df = filtered_df[filtered_df['Payment Method'].isin(selected_payment)]
+mask = (
+    (df['Gender'].isin(selected_gender)) & 
+    (df['Location'].isin(selected_locations)) & 
+    (df['Category'].isin(selected_categories)) & 
+    (df['Season'].isin(selected_seasons)) & 
+    (df['Payment Method'].isin(selected_payment)) &
+    (df['Age'] >= age_range[0]) & (df['Age'] <= age_range[1])
+)
+filtered_df = df[mask]
 
 # ==================== HEADER ====================
 st.markdown("""
-<div class="dashboard-header">
-    <h1>🛍️ Consumer Shopping Analytics Hub</h1>
-    <p style="font-size: 1.2rem; margin-top: 10px;">
-        Comprehensive insights into consumer behavior, purchasing patterns, and business performance
-    </p>
+<div class="main-header">
+    <h1>Consumer Intelligence Hub</h1>
+    <p>Data-driven insights into purchasing behavior and revenue growth</p>
 </div>
 """, unsafe_allow_html=True)
 
-# ==================== KEY METRICS ====================
-st.markdown("### 📊 Key Performance Indicators")
-
-col1, col2, col3, col4, col5 = st.columns(5)
-
-# Total Revenue
-total_revenue = filtered_df['Purchase Amount (USD)'].sum()
-avg_revenue = df['Purchase Amount (USD)'].sum() / len(df['Customer ID'].unique()) if len(df) > 0 else 0
-revenue_per_customer = total_revenue / filtered_df['Customer ID'].nunique() if len(filtered_df) > 0 else 0
-
-with col1:
-    st.metric(
-        label="💰 Total Revenue",
-        value=f"${total_revenue:,.0f}",
-        delta=f"{(total_revenue/df['Purchase Amount (USD)'].sum()*100):.1f}% of total"
-    )
-
-# Total Customers
-total_customers = filtered_df['Customer ID'].nunique()
-with col2:
-    st.metric(
-        label="👥 Unique Customers",
-        value=f"{total_customers:,}",
-        delta=f"{(total_customers/df['Customer ID'].nunique()*100):.1f}% of base"
-    )
-
-# Average Order Value
-avg_order_value = filtered_df['Purchase Amount (USD)'].mean()
-with col3:
-    st.metric(
-        label="🛒 Avg Order Value",
-        value=f"${avg_order_value:.2f}",
-        delta=f"${avg_order_value - df['Purchase Amount (USD)'].mean():.2f}"
-    )
-
-# Total Transactions
-total_transactions = len(filtered_df)
-with col4:
-    st.metric(
-        label="📦 Total Orders",
-        value=f"{total_transactions:,}",
-        delta=f"{(total_transactions/len(df)*100):.1f}% of total"
-    )
-
-# Average Rating
-avg_rating = filtered_df['Review Rating'].mean()
-with col5:
-    st.metric(
-        label="⭐ Avg Rating",
-        value=f"{avg_rating:.2f}/5.0",
-        delta=f"{avg_rating - df['Review Rating'].mean():.2f}"
-    )
-
-st.markdown("---")
-
-# ==================== SECONDARY METRICS ====================
-st.markdown("### 📈 Advanced Metrics")
+# ==================== TOP KPI ROW ====================
+# Using a custom function to render professional cards
+def render_kpi(label, value, delta=None):
+    delta_html = f'<div style="color: #10b981; font-size: 0.8rem;">{delta}</div>' if delta else ""
+    st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-label">{label}</div>
+            <div class="metric-value">{value}</div>
+            {delta_html}
+        </div>
+    """, unsafe_allow_html=True)
 
 col1, col2, col3, col4 = st.columns(4)
-
 with col1:
-    # Customer Lifetime Value proxy
-    clv = filtered_df.groupby('Customer ID')['Purchase Amount (USD)'].sum().mean()
-    st.metric(
-        label="💎 Avg Customer Value",
-        value=f"${clv:.2f}",
-        delta="Lifetime estimate"
-    )
-
+    total_rev = filtered_df['Purchase Amount (USD)'].sum()
+    render_kpi("Total Revenue", f"${total_rev:,.0f}", f"{(total_rev/df['Purchase Amount (USD)'].sum()*100):.1f}% of Total")
 with col2:
-    # Discount penetration
-    discount_rate = (filtered_df['Discount Applied'] == 'Yes').sum() / len(filtered_df) * 100
-    st.metric(
-        label="🎁 Discount Rate",
-        value=f"{discount_rate:.1f}%",
-        delta=f"{discount_rate - ((df['Discount Applied'] == 'Yes').sum() / len(df) * 100):.1f}%"
-    )
-
+    total_cust = filtered_df['Customer ID'].nunique()
+    render_kpi("Unique Customers", f"{total_cust:,}", f"{(total_cust/df['Customer ID'].nunique()*100):.1f}% of Base")
 with col3:
-    # Subscription rate
-    subscription_rate = (filtered_df['Subscription Status'] == 'Yes').sum() / len(filtered_df) * 100
-    st.metric(
-        label="🔔 Subscription Rate",
-        value=f"{subscription_rate:.1f}%",
-        delta=f"{subscription_rate - ((df['Subscription Status'] == 'Yes').sum() / len(df) * 100):.1f}%"
-    )
-
+    avg_ov = filtered_df['Purchase Amount (USD)'].mean()
+    render_kpi("Avg Order Value", f"${avg_ov:.2f}", f"{avg_ov - df['Purchase Amount (USD)'].mean():.2f} vs Avg")
 with col4:
-    # Repeat customers
-    repeat_customers = (filtered_df['Previous Purchases'] > 0).sum() / len(filtered_df) * 100
-    st.metric(
-        label="🔁 Repeat Customers",
-        value=f"{repeat_customers:.1f}%",
-        delta=f"{repeat_customers - ((df['Previous Purchases'] > 0).sum() / len(df) * 100):.1f}%"
-    )
+    avg_rat = filtered_df['Review Rating'].mean()
+    render_kpi("Customer Satisfaction", f"{avg_rat:.2f} / 5", f"{avg_rat - df['Review Rating'].mean():.2f} shift")
 
-st.markdown("---")
+st.markdown("<br>", unsafe_allow_html=True)
 
-# ==================== TAB LAYOUT ====================
+# ==================== TABS ====================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📊 Sales Analytics", 
-    "👥 Customer Insights", 
-    "🏷️ Product Analysis", 
-    "💳 Payment & Shipping",
-    "🔍 Data Explorer"
+    "📈 Revenue Analysis", "👥 Customer Profiling", "📦 Product Intelligence", "💳 Logistics & Ops", "🛠️ Data Lab"
 ])
 
-# ==================== TAB 1: SALES ANALYTICS ====================
+# --- TAB 1: REVENUE ANALYSIS ---
 with tab1:
-    st.markdown("### 💵 Sales Performance Analysis")
+    c1, c2 = st.columns([6, 4])
+    with c1:
+        st.subheader("Revenue by Category & Season")
+        rev_data = filtered_df.groupby(['Category', 'Season'])['Purchase Amount (USD)'].sum().reset_index()
+        fig_rev = px.bar(rev_data, x='Category', y='Purchase Amount (USD)', color='Season', 
+                         barmode='group', color_discrete_sequence=px.colors.qualitative.Prism,
+                         template="plotly_white")
+        st.plotly_chart(fig_rev, use_container_width=True)
     
-    col1, col2 = st.columns(2)
+    with c2:
+        st.subheader("Revenue Share")
+        fig_pie = px.pie(filtered_df, values='Purchase Amount (USD)', names='Category', 
+                         hole=0.5, color_discrete_sequence=px.colors.qualitative.Pastel)
+        fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+# --- TAB 2: CUSTOMER PROFILING ---
+with tab2:
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Age vs. Spending Power")
+        fig_scatter = px.scatter(filtered_df, x='Age', y='Purchase Amount (USD)', color='Gender',
+                                 trendline="ols", template="plotly_white",
+                                 color_discrete_map={"Male": "#4f46e5", "Female": "#ec4899"})
+        st.plotly_chart(fig_scatter, use_container_width=True)
     
-    with col1:
-        # Revenue by Category
-        st.markdown("#### Revenue by Category")
-        category_sales = filtered_df.groupby('Category')['Purchase Amount (USD)'].sum().reset_index()
-        category_sales = category_sales.sort_values('Purchase Amount (USD)', ascending=False)
-        
-        fig_cat_revenue = px.bar(
-            category_sales,
-            x='Category',
-            y='Purchase Amount (USD)',
-            color='Purchase Amount (USD)',
-            color_continuous_scale='Viridis',
-            text_auto='$.2s',
-            title='Total Revenue by Product Category'
-        )
-        fig_cat_revenue.update_layout(
-            showlegend=False,
-            height=400,
-            xaxis_title="Category",
-            yaxis_title="Revenue (USD)"
-        )
-        st.plotly_chart(fig_cat_revenue, use_container_width=True)
-    
-    with col2:
-        # Revenue by Season
-        st.markdown("#### Seasonal Revenue Distribution")
-        season_sales = filtered_df.groupby('Season')['Purchase Amount (USD)'].sum().reset_index()
-        
-        fig_season = px.pie(
-            season_sales,
-            values='Purchase Amount (USD)',
-            names='Season',
-            title='Revenue Distribution by Season',
-            hole=0.4,
-            color_discrete_sequence=px.colors.qualitative.Set3
-        )
-        fig_season.update_layout(height=400)
-        st.plotly_chart(fig_season, use_container_width=True)
-    
-    # Revenue Distribution Analysis
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Purchase Amount Distribution")
-        fig_dist = px.histogram(
-            filtered_df,
-            x='Purchase Amount (USD)',
-            nbins=30,
-            title='Distribution of Purchase Amounts',
-            color_discrete_sequence=['#667eea']
-        )
-        fig_dist.update_layout(
-            showlegend=False,
-            height=400,
-            xaxis_title="Purchase Amount (USD)",
-            yaxis_title="Frequency"
-        )
-        st.plotly_chart(fig_dist, use_container_width=True)
-    
-    with col2:
-        st.markdown("#### Top 10 Locations by Revenue")
-        location_sales = filtered_df.groupby('Location')['Purchase Amount (USD)'].sum().reset_index()
-        location_sales = location_sales.sort_values('Purchase Amount (USD)', ascending=False).head(10)
-        
-        fig_loc = px.bar(
-            location_sales,
-            x='Purchase Amount (USD)',
-            y='Location',
-            orientation='h',
-            color='Purchase Amount (USD)',
-            color_continuous_scale='Plasma',
-            text_auto='$.2s',
-            title='Top 10 Revenue-Generating Locations'
-        )
-        fig_loc.update_layout(
-            showlegend=False,
-            height=400,
-            xaxis_title="Revenue (USD)",
-            yaxis_title="Location"
-        )
-        st.plotly_chart(fig_loc, use_container_width=True)
-    
-    # Category Performance Matrix
-    st.markdown("#### Category Performance Matrix")
-    category_metrics = filtered_df.groupby('Category').agg({
-        'Purchase Amount (USD)': ['sum', 'mean', 'count'],
+    with c2:
+        st.subheader("Purchase Frequency Distribution")
+        freq_df = filtered_df['Frequency of Purchases'].value_counts().sort_index().reset_index()
+        fig_freq = px.bar(freq_df, x='index', y='count', 
+                          labels={'index': 'Frequency', 'count': 'Number of Customers'},
+                          color='count', color_continuous_scale='Blues')
+        st.plotly_chart(fig_freq, use_container_width=True)
+
+# --- TAB 3: PRODUCT INTELLIGENCE ---
+with tab3:
+    st.subheader("Product Performance Matrix")
+    # Analyzing the relationship between Rating and Revenue
+    prod_perf = filtered_df.groupby('Item Purchased').agg({
+        'Purchase Amount (USD)': 'sum',
         'Review Rating': 'mean'
     }).reset_index()
-    category_metrics.columns = ['Category', 'Total Revenue', 'Avg Order Value', 'Order Count', 'Avg Rating']
-    category_metrics = category_metrics.sort_values('Total Revenue', ascending=False)
     
-    fig_matrix = go.Figure(data=[go.Table(
-        header=dict(
-            values=list(category_metrics.columns),
-            fill_color='#667eea',
-            align='left',
-            font=dict(color='white', size=12)
-        ),
-        cells=dict(
-            values=[category_metrics[col] for col in category_metrics.columns],
-            fill_color='lavender',
-            align='left',
-            format=['', '$,.0f', '$,.2f', ',d', '.2f']
-        )
-    )])
-    fig_matrix.update_layout(height=300)
-    st.plotly_chart(fig_matrix, use_container_width=True)
+    fig_bubble = px.scatter(prod_perf, x='Review Rating', y='Purchase Amount (USD)', 
+                            size='Purchase Amount (USD)', color='Review Rating',
+                            hover_name='Item Purchased', size_max=40,
+                            color_continuous_scale='RdYlGn', template="plotly_white")
+    st.plotly_chart(fig_bubble, use_container_width=True)
+    st.caption("💡 Interpretation: Top Right = High Revenue & High Satisfaction (Star Products)")
 
-# ==================== TAB 2: CUSTOMER INSIGHTS ====================
-with tab2:
-    st.markdown("### 👤 Customer Demographics & Behavior")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        # Gender Distribution
-        st.markdown("#### Gender Distribution")
-        gender_counts = filtered_df['Gender'].value_counts().reset_index()
-        gender_counts.columns = ['Gender', 'Count']
-        
-        fig_gender = px.pie(
-            gender_counts,
-            values='Count',
-            names='Gender',
-            title='Customer Gender Split',
-            color_discrete_sequence=['#667eea', '#764ba2', '#f093fb']
-        )
-        fig_gender.update_layout(height=350)
-        st.plotly_chart(fig_gender, use_container_width=True)
-    
-    with col2:
-        # Subscription Status
-        st.markdown("#### Subscription Status")
-        sub_counts = filtered_df['Subscription Status'].value_counts().reset_index()
-        sub_counts.columns = ['Status', 'Count']
-        
-        fig_sub = px.pie(
-            sub_counts,
-            values='Count',
-            names='Status',
-            title='Subscription Distribution',
-            hole=0.4,
-            color_discrete_sequence=['#4facfe', '#00f2fe']
-        )
-        fig_sub.update_layout(height=350)
-        st.plotly_chart(fig_sub, use_container_width=True)
-    
-    with col3:
-        # Purchase Frequency
-        st.markdown("#### Purchase Frequency")
-        freq_counts = filtered_df['Frequency of Purchases'].value_counts().reset_index()
-        freq_counts.columns = ['Frequency', 'Count']
-        
-        fig_freq = px.bar(
-            freq_counts,
-            x='Frequency',
-            y='Count',
-            title='Purchase Frequency Distribution',
-            color='Count',
-            color_continuous_scale='Teal'
-        )
-        fig_freq.update_layout(height=350, showlegend=False)
-        st.plotly_chart(fig_freq, use_container_width=True)
-    
-    # Age Analysis
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Age Distribution")
-        fig_age = px.histogram(
-            filtered_df,
-            x='Age',
-            nbins=20,
-            title='Customer Age Distribution',
-            color='Gender',
-            barmode='overlay',
-            color_discrete_sequence=['#667eea', '#f5576c']
-        )
-        fig_age.update_layout(height=400)
-        st.plotly_chart(fig_age, use_container_width=True)
-    
-    with col2:
-        st.markdown("#### Age vs Purchase Amount")
-        age_purchase = filtered_df.groupby('Age')['Purchase Amount (USD)'].mean().reset_index()
-        
-        fig_age_purchase = px.scatter(
-            filtered_df,
-            x='Age',
-            y='Purchase Amount (USD)',
-            color='Gender',
-            trendline='lowess',
-            title='Age vs Purchase Amount Analysis',
-            color_discrete_sequence=['#667eea', '#f5576c']
-        )
-        fig_age_purchase.update_layout(height=400)
-        st.plotly_chart(fig_age_purchase, use_container_width=True)
-    
-    # Customer Segmentation
-    st.markdown("#### Customer Segmentation by Value")
-    
-    customer_value = filtered_df.groupby('Customer ID').agg({
-        'Purchase Amount (USD)': 'sum',
-        'Customer ID': 'count'
-    }).reset_index()
-    customer_value.columns = ['Customer ID', 'Total Spent', 'Order Count']
-    
-    # Create segments
-    customer_value['Segment'] = pd.cut(
-        customer_value['Total Spent'],
-        bins=[0, 50, 100, 200, float('inf')],
-        labels=['Low Value', 'Medium Value', 'High Value', 'VIP']
-    )
-    
-    segment_dist = customer_value['Segment'].value_counts().reset_index()
-    segment_dist.columns = ['Segment', 'Count']
-    
-    fig_segment = px.funnel(
-        segment_dist,
-        x='Count',
-        y='Segment',
-        title='Customer Value Segmentation',
-        color='Segment',
-        color_discrete_sequence=px.colors.sequential.RdBu
-    )
-    fig_segment.update_layout(height=400)
-    st.plotly_chart(fig_segment, use_container_width=True)
-
-# ==================== TAB 3: PRODUCT ANALYSIS ====================
-with tab3:
-    st.markdown("### 🏷️ Product Performance & Preferences")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Top Items
-        st.markdown("#### Top 15 Best-Selling Items")
-        item_sales = filtered_df.groupby('Item Purchased').agg({
-            'Purchase Amount (USD)': 'sum',
-            'Item Purchased': 'count'
-        }).reset_index()
-        item_sales.columns = ['Item', 'Revenue', 'Units Sold']
-        item_sales = item_sales.sort_values('Revenue', ascending=False).head(15)
-        
-        fig_items = px.bar(
-            item_sales,
-            x='Revenue',
-            y='Item',
-            orientation='h',
-            color='Revenue',
-            color_continuous_scale='Turbo',
-            text_auto='$.2s',
-            title='Top Products by Revenue'
-        )
-        fig_items.update_layout(height=500, showlegend=False)
-        st.plotly_chart(fig_items, use_container_width=True)
-    
-    with col2:
-        # Color Preferences
-        st.markdown("#### Color Preferences")
-        color_counts = filtered_df['Color'].value_counts().head(10).reset_index()
-        color_counts.columns = ['Color', 'Count']
-        
-        fig_colors = px.bar(
-            color_counts,
-            x='Color',
-            y='Count',
-            title='Top 10 Popular Colors',
-            color='Count',
-            color_continuous_scale='Rainbow'
-        )
-        fig_colors.update_layout(height=250, showlegend=False)
-        st.plotly_chart(fig_colors, use_container_width=True)
-        
-        # Size Distribution
-        st.markdown("#### Size Distribution")
-        size_counts = filtered_df['Size'].value_counts().reset_index()
-        size_counts.columns = ['Size', 'Count']
-        
-        fig_sizes = px.pie(
-            size_counts,
-            values='Count',
-            names='Size',
-            title='Size Preference Distribution',
-            hole=0.3
-        )
-        fig_sizes.update_layout(height=250)
-        st.plotly_chart(fig_sizes, use_container_width=True)
-    
-    # Review Rating Analysis
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Review Rating Distribution")
-        fig_rating = px.histogram(
-            filtered_df,
-            x='Review Rating',
-            nbins=10,
-            title='Customer Review Ratings',
-            color_discrete_sequence=['#667eea']
-        )
-        fig_rating.update_layout(height=400)
-        st.plotly_chart(fig_rating, use_container_width=True)
-    
-    with col2:
-        st.markdown("#### Average Rating by Category")
-        category_rating = filtered_df.groupby('Category')['Review Rating'].mean().reset_index()
-        category_rating = category_rating.sort_values('Review Rating', ascending=False)
-        
-        fig_cat_rating = px.bar(
-            category_rating,
-            x='Category',
-            y='Review Rating',
-            title='Category Performance by Rating',
-            color='Review Rating',
-            color_continuous_scale='YlGn',
-            text_auto='.2f'
-        )
-        fig_cat_rating.update_layout(height=400, showlegend=False)
-        st.plotly_chart(fig_cat_rating, use_container_width=True)
-    
-    # Category-Season Heatmap
-    st.markdown("#### Category Performance by Season")
-    season_category = filtered_df.groupby(['Season', 'Category'])['Purchase Amount (USD)'].sum().reset_index()
-    season_category_pivot = season_category.pivot(index='Category', columns='Season', values='Purchase Amount (USD)')
-    
-    fig_heatmap = px.imshow(
-        season_category_pivot,
-        title='Revenue Heatmap: Category vs Season',
-        color_continuous_scale='YlOrRd',
-        aspect='auto',
-        labels=dict(color="Revenue (USD)")
-    )
-    fig_heatmap.update_layout(height=400)
-    st.plotly_chart(fig_heatmap, use_container_width=True)
-
-# ==================== TAB 4: PAYMENT & SHIPPING ====================
+# --- TAB 4: LOGISTICS & OPS ---
 with tab4:
-    st.markdown("### 💳 Payment Methods & Shipping Analytics")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Payment Method Efficiency")
+        pay_df = filtered_df.groupby('Payment Method')['Purchase Amount (USD)'].mean().sort_values().reset_index()
+        fig_pay = px.bar(pay_df, x='Purchase Amount (USD)', y='Payment Method', 
+                         orientation='h', color='Purchase Amount (USD)', 
+                         color_continuous_scale='Viridis')
+        st.plotly_chart(fig_pay, use_container_width=True)
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Payment Methods
-        st.markdown("#### Payment Method Distribution")
-        payment_counts = filtered_df['Payment Method'].value_counts().reset_index()
-        payment_counts.columns = ['Method', 'Count']
-        
-        fig_payment = px.pie(
-            payment_counts,
-            values='Count',
-            names='Method',
-            title='Payment Preferences',
-            hole=0.4,
-            color_discrete_sequence=px.colors.qualitative.Pastel
-        )
-        fig_payment.update_layout(height=400)
-        st.plotly_chart(fig_payment, use_container_width=True)
-    
-    with col2:
-        # Shipping Types
-        st.markdown("#### Shipping Type Distribution")
-        shipping_counts = filtered_df['Shipping Type'].value_counts().reset_index()
-        shipping_counts.columns = ['Type', 'Count']
-        
-        fig_shipping = px.bar(
-            shipping_counts,
-            x='Type',
-            y='Count',
-            title='Shipping Method Preferences',
-            color='Count',
-            color_continuous_scale='Blues'
-        )
-        fig_shipping.update_layout(height=400, showlegend=False)
-        st.plotly_chart(fig_shipping, use_container_width=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Discount Analysis
-        st.markdown("#### Discount Impact Analysis")
-        discount_revenue = filtered_df.groupby('Discount Applied')['Purchase Amount (USD)'].agg(['sum', 'mean', 'count']).reset_index()
-        discount_revenue.columns = ['Discount Applied', 'Total Revenue', 'Avg Order', 'Order Count']
-        
-        fig_discount = px.bar(
-            discount_revenue,
-            x='Discount Applied',
-            y='Total Revenue',
-            title='Revenue by Discount Status',
-            color='Total Revenue',
-            text_auto='$.2s',
-            color_continuous_scale='Greens'
-        )
-        fig_discount.update_layout(height=400, showlegend=False)
-        st.plotly_chart(fig_discount, use_container_width=True)
-    
-    with col2:
-        # Promo Code Usage
-        st.markdown("#### Promo Code Utilization")
-        promo_counts = filtered_df['Promo Code Used'].value_counts().reset_index()
-        promo_counts.columns = ['Promo Used', 'Count']
-        
-        fig_promo = px.pie(
-            promo_counts,
-            values='Count',
-            names='Promo Used',
-            title='Promo Code Usage',
-            color_discrete_sequence=['#667eea', '#f5576c']
-        )
-        fig_promo.update_layout(height=400)
-        st.plotly_chart(fig_promo, use_container_width=True)
-    
-    # Payment Method by Category
-    st.markdown("#### Payment Methods by Product Category")
-    payment_category = filtered_df.groupby(['Category', 'Payment Method']).size().reset_index(name='Count')
-    
-    fig_payment_cat = px.bar(
-        payment_category,
-        x='Category',
-        y='Count',
-        color='Payment Method',
-        title='Payment Method Preferences Across Categories',
-        barmode='group',
-        color_discrete_sequence=px.colors.qualitative.Set2
-    )
-    fig_payment_cat.update_layout(height=400)
-    st.plotly_chart(fig_payment_cat, use_container_width=True)
-    
-    # Shipping + Subscription Analysis
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Subscription vs Non-Subscription Revenue")
-        sub_revenue = filtered_df.groupby('Subscription Status')['Purchase Amount (USD)'].sum().reset_index()
-        
-        fig_sub_rev = px.bar(
-            sub_revenue,
-            x='Subscription Status',
-            y='Purchase Amount (USD)',
-            title='Revenue by Subscription Status',
-            color='Purchase Amount (USD)',
-            text_auto='$.2s',
-            color_continuous_scale='Purples'
-        )
-        fig_sub_rev.update_layout(height=400, showlegend=False)
-        st.plotly_chart(fig_sub_rev, use_container_width=True)
-    
-    with col2:
-        st.markdown("#### Previous Purchases Distribution")
-        fig_prev = px.histogram(
-            filtered_df,
-            x='Previous Purchases',
-            nbins=20,
-            title='Customer Purchase History',
-            color_discrete_sequence=['#764ba2']
-        )
-        fig_prev.update_layout(height=400)
-        st.plotly_chart(fig_prev, use_container_width=True)
+    with c2:
+        st.subheader("Shipping Preference")
+        ship_df = filtered_df['Shipping Type'].value_counts().reset_index()
+        fig_ship = px.pie(ship_df, values='count', names='Shipping Type', 
+                          color_discrete_sequence=px.colors.qualitative.Safe)
+        st.plotly_chart(fig_ship, use_container_width=True)
 
-# ==================== TAB 5: DATA EXPLORER ====================
+# --- TAB 5: DATA LAB ---
 with tab5:
-    st.markdown("### 🔍 Raw Data Explorer")
+    st.subheader("Advanced Statistical Analysis")
     
-    # Summary Statistics
-    st.markdown("#### Dataset Summary")
-    col1, col2, col3 = st.columns(3)
+    # Correlation Heatmap
+    st.markdown("#### Feature Correlation Matrix")
+    numeric_df = filtered_df.select_dtypes(include=[np.number])
+    corr = numeric_df.corr()
+    fig_corr, ax = plt.subplots(figsize=(10, 6)) if 'plt' in globals() else None 
+    # Using plotly for the heatmap to keep it consistent
+    fig_heat = px.imshow(corr, text_auto=True, aspect="auto", 
+                         color_continuous_scale='RdBu_r', zmin=-1, zmax=1)
+    st.plotly_chart(fig_heat, use_container_width=True)
     
-    with col1:
-        st.info(f"**Total Rows:** {len(filtered_df):,}")
-    with col2:
-        st.info(f"**Total Columns:** {len(filtered_df.columns)}")
-    with col3:
-        st.info(f"**Date Range:** All Time")
+    st.markdown("#### Raw Data Explorer")
+    st.dataframe(filtered_df, use_container_width=True)
     
-    # Show filtered data
-    st.markdown("#### Filtered Dataset")
-    st.dataframe(
-        filtered_df.head(100),
-        use_container_width=True,
-        height=400
-    )
-    
-    # Download button
     csv = filtered_df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Download Filtered Data as CSV",
-        data=csv,
-        file_name='filtered_shopping_data.csv',
-        mime='text/csv',
-    )
-    
-    # Statistical Summary
-    st.markdown("#### Statistical Summary")
-    st.dataframe(
-        filtered_df.describe(),
-        use_container_width=True
-    )
+    st.download_button("📥 Export filtered data to CSV", data=csv, file_name="analytics_export.csv", mime="text/csv")
 
 # ==================== FOOTER ====================
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #666; padding: 20px;'>
-    <p>🛍️ Consumer Shopping Analytics Dashboard | Built with Streamlit & Plotly</p>
-    <p>Data refreshes in real-time based on filter selections</p>
+<div style='text-align: center; color: #94a3b8; padding: 1rem;'>
+    <p>Enterprise Consumer Analytics Hub | <b>Version 2.0 (Robust)</b></p>
 </div>
 """, unsafe_allow_html=True)
